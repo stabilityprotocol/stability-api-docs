@@ -5,7 +5,7 @@ function App() {
   return (
     <div style={{ margin: "0 auto", maxWidth: 1200 }}>
       <RedocStandalone
-        specUrl="/openapi.yaml"
+        specUrl="./openapi.yaml"
         options={{
           scrollYOffset: 50,
           hideDownloadButton: false,
