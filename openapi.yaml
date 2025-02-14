@@ -1,135 +1,245 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Stability Protocol Free Transactions API
-  description: API for interacting with Stability Protocol's free transactions service.
+  title: Zero Gas Transactions API
   version: "1.0.0"
-  contact:
-    name: API Support
-    url: https://stabilityprotocol.com/support
-    email: contact@stabilityprotocol.com
-servers:
-  - url: https://api.stabilityprotocol.com/v1
-    description: Stability Protocol API base URL
+  description: API for handling ZKT transactions. Utilize V1 for transactions that do not interact with a contract, such as a posting a message to the chain. Utilize V2 for more complex transactions, such as deploying a contract or calling a contract method.
 paths:
-  /free-transactions/{address}:
-    get:
-      summary: Retrieve free transactions for a specific address
-      operationId: getFreeTransactions
-      tags:
-        - Free Transactions
+  /zkt/{api_key}:
+    post:
+      summary: Process a ZKT payload
       parameters:
-        - name: address
+        - name: api_key
           in: path
           required: true
-          description: Ethereum address to retrieve the transactions for
           schema:
             type: string
-            pattern: "^0x[a-fA-F0-9]{40}$"
+      requestBody:
+        description: Payload conforming to ZktV1 or ZktV2 schema.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Zkt"
       responses:
         "200":
-          description: A list of free transactions for the given address
+          description: Successful response with one of the success or error DTOs.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  transactions:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Transaction"
-                  remaining:
-                    type: number
+                $ref: "#/components/schemas/ZKTv2DTO"
         "400":
-          description: Bad request, e.g., if the address is not in the correct format
-        "404":
-          description: Address not found
-        "500":
-          description: Internal server error
-
-  /paid-transactions/keys:
-    get:
-      summary: Retrieve api key details
-      operationId: getApiKeyDetails
-      tags:
-        - Paid Transactions
-      parameters:
-        - in: header
-          name: Authorization
-          schema:
-            type: string
-            format: Bearer ${SupabaseAuthToken}
-          required: true
-      responses:
-        "200":
-          description: Success Retrieving Information
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ApiKey"
-
-    post:
-      summary: Create api key
-      operationId: createApiKey
-      tags:
-        - Paid Transactions
-      parameters:
-        - in: header
-          name: Authorization
-          schema:
-            type: string
-            format: Bearer ${SupabaseAuthToken}
-          required: true
-      responses:
-        "200":
-          description: Success creating info
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiKey"
+          description: Bad Request
 
 components:
   schemas:
-    Transaction:
+    # --------------------------------------------------------------------------
+    # Input Payloads
+    # --------------------------------------------------------------------------
+
+    ZktV1:
       type: object
       properties:
-        txHash:
+        arguments:
           type: string
-          description: The transaction hash
-        blockNumber:
-          type: integer
-          format: int64
-          description: The block number in which the transaction was recorded
-        from:
-          type: string
-          description: The initiating transaction address
+      required:
+        - arguments
+      example:
+        arguments: "some-string"
+
+    ZktV2Simple:
+      type: object
+      properties:
         to:
           type: string
-          description: The receiving transaction address
-        value:
+        abi:
+          type: array
+          items:
+            type: string
+        method:
           type: string
-          description: The value transferred in the transaction
-        gasUsed:
-          type: integer
-          format: int64
-          description: The amount of gas used for the transaction
-        timestamp:
-          type: string
-          format: date-time
-          description: The timestamp for when the transaction was included in the block
+        arguments:
+          type: array
+          items:
+            type: string
+        wait:
+          type: boolean
+          description: "If present, indicates the call should wait for completion."
+        id:
+          oneOf:
+            - type: string
+            - type: number
+          description: "Optional identifier for the transaction."
+      required:
+        - to
+        - abi
+        - method
+        - arguments
+      example:
+        to: "0x123..."
+        abi: ["func1", "func2"]
+        method: "transfer"
+        arguments: ["arg1", "arg2"]
+        wait: false
+        id: "abc"
 
-    ApiKey:
+    ZktV2Contract:
       type: object
       properties:
-        api_key:
+        id:
+          oneOf:
+            - type: string
+            - type: number
+          description: "Optional identifier for the contract deployment."
+        code:
           type: string
-        email:
-          type: string
-        created_at:
-          type: string
-        granularity:
-          type: string
-          enum: ["day", "month", "year", "prepaid"]
-        enabled:
+          description: "Contract bytecode or code."
+        arguments:
+          type: array
+          items:
+            type: string
+          description: "Optional constructor arguments."
+      required:
+        - code
+      example:
+        code: "contract-code"
+        arguments: ["arg1", "arg2"]
+
+    ZktV2:
+      oneOf:
+        - $ref: "#/components/schemas/ZktV2Simple"
+        - $ref: "#/components/schemas/ZktV2Contract"
+      description: "Either a ZKTv2Simple or ZKTv2Contract payload."
+
+    # Union of all possible input payloads (V1 or V2)
+    Zkt:
+      oneOf:
+        - $ref: "#/components/schemas/ZktV1"
+        - $ref: "#/components/schemas/ZktV2"
+      description: "Either a ZKTv1 or ZKTv2 payload."
+
+    # --------------------------------------------------------------------------
+    # Output DTOs
+    # --------------------------------------------------------------------------
+
+    SuccessReadZKTv2DTO:
+      type: object
+      properties:
+        success:
           type: boolean
+          enum: [true]
+        output:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        id:
+          oneOf:
+            - type: string
+            - type: number
+      required:
+        - success
+        - id
+      example:
+        success: true
+        output: "read output"
+        id: "123"
+
+    SuccessWriteZKTv2DTO:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        hash:
+          type: string
+        id:
+          oneOf:
+            - type: string
+            - type: number
+      required:
+        - success
+        - hash
+        - id
+      example:
+        success: true
+        hash: "0xabc123"
+        id: 123
+
+    SuccessDeployZKTv2DTO:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        contractAddress:
+          type: string
+        abi:
+          type: array
+          items:
+            type: string
+        id:
+          oneOf:
+            - type: string
+            - type: number
+      required:
+        - success
+        - contractAddress
+        - abi
+        - id
+      example:
+        success: true
+        contractAddress: "0xdef456"
+        abi: ["func1", "func2"]
+        id: "456"
+
+    SuccessWithErrorZKTv2DTO:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        error:
+          type: string
+        id:
+          oneOf:
+            - type: string
+            - type: number
+      required:
+        - success
+        - error
+        - id
+      example:
+        success: true
+        error: "Some warning message"
+        id: "789"
+
+    ErrorZKTv2DTO:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          type: string
+        id:
+          oneOf:
+            - type: string
+            - type: number
+      required:
+        - success
+        - error
+        - id
+      example:
+        success: false
+        error: "Some error occurred"
+        id: "101"
+
+    # Union of all possible response DTOs (success or error)
+    ZKTv2DTO:
+      oneOf:
+        - $ref: "#/components/schemas/SuccessReadZKTv2DTO"
+        - $ref: "#/components/schemas/SuccessWriteZKTv2DTO"
+        - $ref: "#/components/schemas/SuccessDeployZKTv2DTO"
+        - $ref: "#/components/schemas/SuccessWithErrorZKTv2DTO"
+        - $ref: "#/components/schemas/ErrorZKTv2DTO"
