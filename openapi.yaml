@@ -2,7 +2,11 @@ openapi: 3.0.3
 info:
   title: Zero Gas Transactions API
   version: "1.0.0"
-  description: API for handling ZKT transactions. Utilize V1 for transactions that do not interact with a contract, such as a posting a message to the chain. Utilize V2 for more complex transactions, such as deploying a contract or calling a contract method.
+  description: >
+    API for handling ZKT transactions. Utilize V1 for transactions that do not interact 
+    with a contract, such as posting a message to the chain. Utilize V2 for more complex 
+    transactions, such as deploying a contract or calling a contract method.
+
 paths:
   /zkt/{api_key}:
     post:
@@ -35,7 +39,6 @@ components:
     # --------------------------------------------------------------------------
     # Input Payloads
     # --------------------------------------------------------------------------
-
     ZktV1:
       type: object
       properties:
@@ -120,7 +123,6 @@ components:
     # --------------------------------------------------------------------------
     # Output DTOs
     # --------------------------------------------------------------------------
-
     SuccessReadZKTv2DTO:
       type: object
       properties:
@@ -142,7 +144,7 @@ components:
         - id
       example:
         success: true
-        output: "read output"
+        output: "Data from contract read operation"
         id: "123"
 
     SuccessWriteZKTv2DTO:
@@ -201,6 +203,13 @@ components:
           enum: [true]
         error:
           type: string
+          description: "ZKT v2 call succeeded, but with warnings."
+        errorCode:
+          type: string
+          description: "TXN_SUCCESS_WITH_WARNINGS"
+        details:
+          type: string
+          description: "ZKT v2 call succeeded, but with warnings."
         id:
           oneOf:
             - type: string
@@ -211,7 +220,9 @@ components:
         - id
       example:
         success: true
-        error: "Some warning message"
+        error: "Transaction succeeded, but with warnings."
+        errorCode: "TXN_SUCCESS_WITH_WARNINGS"
+        details: "Warning with Write ZKT v2: Transaction succeeded, but with warnings."
         id: "789"
 
     ErrorZKTv2DTO:
@@ -222,6 +233,13 @@ components:
           enum: [false]
         error:
           type: string
+          description: "Transaction could not be processed."
+        errorCode:
+          type: string
+          description: "TXN_NOT_PROCESSED"
+        details:
+          type: string
+          description: "Error with Write ZKT v2: Transaction could not be processed."
         id:
           oneOf:
             - type: string
@@ -232,7 +250,9 @@ components:
         - id
       example:
         success: false
-        error: "Some error occurred"
+        error: "Transaction could not be processed."
+        errorCode: "TXN_NOT_PROCESSED"
+        details: "Error with Write ZKT v2: Transaction could not be processed."
         id: "101"
 
     # Union of all possible response DTOs (success or error)
