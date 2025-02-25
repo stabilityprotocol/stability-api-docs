@@ -95,7 +95,7 @@ components:
           description: "Optional identifier for the contract deployment."
         code:
           type: string
-          description: "Contract bytecode or code."
+          description: "Contract Solidity code."
         arguments:
           type: array
           items:
